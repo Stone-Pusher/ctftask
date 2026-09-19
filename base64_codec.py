@@ -1,46 +1,72 @@
-base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+def getchar(num):
+    if num < 26:
+        return chr(num + ord('A'))
+    elif num < 52:
+        return chr(num - 26 + ord('a'))
+    elif num < 62:
+        return chr(num - 52 + ord('0'))
+    elif num == 62:
+        return '+'
+    else:
+        return '/'
 
-def encode(data):
-    result = []
+def b64encode(data):
+    result = ""
     i = 0
     length = len(data)
     while i < length:
-        b0 = data[i]
-        b1 = data[i+1] if i+1 < length else 0
-        b2 = data[i+2] if i+2 < length else 0
-        n0 = (b0 >> 2) & 0x3F
-        n1 = ((b0 & 0x03) << 4) | ((b1 >> 4) & 0x0F)
-        n2 = ((b1 & 0x0F) << 2) | ((b2 >> 6) & 0x03)
-        n3 = b2 & 0x3F
-        result.append(base64_chars[n0])
-        result.append(base64_chars[n1])
-        result.append(base64_chars[n2] if i+1 < length else '=')
-        result.append(base64_chars[n3] if i+2 < length else '=')
-        i += 3
-    return ''.join(result)
+        b1 = data[i]
+        b2 = data[i+1] if i+1 < length else 0
+        b3 = data[i+2] if i+2 < length else 0
+        x1 = b1 >> 2
+        x2 = ((b1 & 0x03) << 4) | (b2 >> 4)
+        x3 = ((b2 & 0x0F) << 2) | (b3 >> 6)
+        x4 = b3 & 0x3F
+        result = result + getchar(x1)
+        result = result + getchar(x2)
+        result = result + (getchar(x3) if i+1 < length else '=')
+        result = result + (getchar(x4) if i+2 < length else '=')
+        i = i + 3
+    return result
 
-def decode(s):
-    s = s.rstrip('=')
-    char_map = {c: i for i, c in enumerate(base64_chars)}
+def getnum(char):
+    if 'A' <= char <= 'Z':
+        return ord(char) - ord('A')
+    elif 'a' <= char <= 'z':
+        return ord(char) - ord('a') + 26
+    elif '0' <= char <= '9':
+        return ord(char) - ord('0') + 52
+    elif char == '+':
+        return 62
+    elif char == '/':
+        return 63
+    else:
+        return 0
+
+def b64decode(code):
     result = bytearray()
     i = 0
-    length = len(s)
-    while i < length:
-        v0 = char_map[s[i]]
-        v1 = char_map[s[i+1]] if i+1 < length else 0
-        v2 = char_map[s[i+2]] if i+2 < length else 0
-        v3 = char_map[s[i+3]] if i+3 < length else 0
-        result.append((v0 << 2) | (v1 >> 4))
-        if i+2 < length:
-            result.append(((v1 & 0x0F) << 4) | (v2 >> 2))
-        if i+3 < length:
-            result.append(((v2 & 0x03) << 6) | v3)
-        i += 4
+    while i < len(code):
+        x1 = getnum(code[i])
+        x2 = getnum(code[i + 1])
+        x3 = getnum(code[i + 2])
+        x4 = getnum(code[i + 3])
+        if code[i + 2] == "=":
+            x3 = 0
+        if code[i + 3] == "=":
+            x4 = 0
+        y = (x1 << 18) + (x2 << 12) + (x3 << 6) + x4
+        result.append((y >> 16) & 255)
+        if code[i + 2] != "=":
+            result.append((y >> 8) & 255)
+        if code[i + 3] != "=":
+            result.append(y & 255)
+        i = i + 4
     return bytes(result)
 
 plain_text = "Hello, Network Security! 2026"
-encoded_text = encode(plain_text.encode('utf-8'))
-decoded_text = decode(encoded_text).decode('utf-8')
+cipher_text = b64encode(plain_text.encode('utf-8'))
+decode_text = b64decode(cipher_text).decode('utf-8')
 print("原始明文：", plain_text)
-print("编码结果：", encoded_text)
-print("解码还原：", decoded_text)
+print("编码结果：", cipher_text)
+print("解码还原：", decode_text)
